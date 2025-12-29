@@ -1,0 +1,8 @@
+node_modules
+
+/src/generated/prisma
+
+.env
+
+
+samacs_postman_collection.json

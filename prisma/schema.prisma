@@ -1,0 +1,161 @@
+generator client {
+  provider  = "prisma-client" 
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  DIRECTOR
+  TEACHER
+  STUDENT
+  ADMIN
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum DataClassification {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          Role      @default(STUDENT)
+  department    String?
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // MFA
+  mfaSecret     String?
+  mfaEnabled    Boolean   @default(false)
+
+  // Account Lockout
+  failedLoginAttempts Int @default(0)
+  lockoutUntil        DateTime?
+
+  // Relations
+  taughtCourses TeacherAssignment[]
+  attendances   Attendance[]
+  auditLogs     AuditLog[]
+  markedSessions AttendanceSession[] // Sessions marked by this teacher
+  permissions    Permission[]        // DAC Permissions granted to this user
+
+  @@map("users")
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  userId    String
+  resource  String   // e.g., "report:123"
+  action    String   // READ, WRITE
+  grantedBy String   // User ID of owner
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, resource, action])
+  @@map("permissions")
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  department  String
+  credits     Int
+  
+  // Relations
+  teachers    TeacherAssignment[]
+  sessions    AttendanceSession[]
+
+  @@map("courses")
+}
+
+model TeacherAssignment {
+  id        String   @id @default(uuid())
+  teacherId String
+  courseId  String
+  assignedAt DateTime @default(now())
+  semester  String
+
+  teacher   User     @relation(fields: [teacherId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([teacherId, courseId, semester])
+  @@map("teacher_assignments")
+}
+
+model AttendanceSession {
+  id          String   @id @default(uuid())
+  courseId    String
+  teacherId   String
+  startTime   DateTime
+  endTime     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  course      Course   @relation(fields: [courseId], references: [id])
+  teacher     User     @relation(fields: [teacherId], references: [id]) // Teacher who conducted the session
+  records     Attendance[]
+
+  @@map("attendance_sessions")
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  sessionId String
+  studentId String
+  status    AttendanceStatus
+  remarks   String?
+  classification DataClassification @default(CONFIDENTIAL)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session   AttendanceSession @relation(fields: [sessionId], references: [id])
+  student   User              @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@map("attendance_records")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  resource  String
+  details   String   // JSON stringified
+  ipAddress String?
+  timestamp DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Policy {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  effect      String   // ALLOW, DENY
+  action      String   // e.g., read, write
+  resource    String   // e.g., attendance, course
+  condition   String?  // JSON stringified ABAC condition
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("policies")
+}
