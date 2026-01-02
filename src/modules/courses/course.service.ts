@@ -16,6 +16,10 @@ export class CourseService {
         return this.courseRepository.findAll();
     }
 
+    async getCourseById(id: string) {
+        return this.courseRepository.findById(id);
+    }
+
     async assignTeacherToCourse(courseId: string, teacherId: string, semester: string) {
         return this.courseRepository.assignTeacher(courseId, teacherId, semester);
     }

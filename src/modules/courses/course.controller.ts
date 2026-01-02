@@ -36,6 +36,19 @@ export class CourseController {
         res.json(courses);
     };
 
+    getById = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const course = await this.courseService.getCourseById(id);
+            if (!course) {
+                return res.status(404).json({ error: 'Course not found' });
+            }
+            res.json(course);
+        } catch (error: any) {
+            res.status(500).json({ error: 'Failed to fetch course' });
+        }
+    };
+
     assignTeacher = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;

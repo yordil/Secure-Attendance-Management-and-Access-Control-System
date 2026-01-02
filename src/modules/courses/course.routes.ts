@@ -18,6 +18,9 @@ router.post(
 // All authenticated users can view courses? Or maybe just internal
 router.get('/', authenticate, courseController.list);
 
+// Get course by ID
+router.get('/:id', authenticate, courseController.getById);
+
 // Assign teacher: DIRECTOR only
 router.post(
     '/:id/assign',
